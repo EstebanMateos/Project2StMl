@@ -23,7 +23,7 @@ if __name__ == "__main__":
     path_fun = lambda x: "{}/{}_{}.txt".format(directory,x, decks)
     # init constants
     omega = 0.77        # power decay of the learning rate
-    n_sims = 10 ** 4    # Number of episodes generated
+    n_sims = 10 ** 3    # Number of episodes generated
     epsilon = 0.05      # Probability in epsilon-soft strategy
     init_val = 0.0
     warmup = n_sims//10
@@ -40,7 +40,9 @@ if __name__ == "__main__":
     D2["MC"] = {str(1):0,str(2):0,str(6):0, str(inf):0}
     D2["QL_Ext"] = {str(1):0,str(2):0,str(6):0, str(inf):0}
     D2["QL_sum"] = {str(1):0,str(2):0,str(6):0, str(inf):0}
-    
+    MC_List = {str(1):[], str(2):[], str(6):[], str(inf):[]}
+    QL_ext_List = {str(1):[], str(2):[], str(6):[], str(inf):[]}
+    QL_sum_List = {str(1):[], str(2):[], str(6):[], str(inf):[]}
     for decks in [1,2,6,8,inf]:
         print("----- deck number equal to {} -----".format(decks))
         # set seed
@@ -52,7 +54,7 @@ if __name__ == "__main__":
         print("----- Starting MC training on expanded state space -----")
         # MC-learning wit expanded state representation
         start_time_MC = time.time()
-        Q_MC, MC_avg_reward, state_action_count, avg_rewards_over_n_episodes = rl.learn_MC(
+        Q_MC, MC_avg_reward, state_action_count, avg_rewards_over_n_episodes, MC_List[str(decks)] = rl.learn_MC(
             env, n_sims, gamma = 1, epsilon = epsilon, init_val = init_val,
             episode_file=path_fun("hand_MC_state"), warmup=warmup)
         print("Number of explored states: " + str(len(Q_MC)))
@@ -64,7 +66,7 @@ if __name__ == "__main__":
         print("----- Starting Q-learning on expanded state space -----")
         # Q-learning with expanded state representation
         start_time_expanded = time.time()
-        Q, avg_reward, state_action_count, avg_rewards_over_n_episodes = rl.learn_Q(
+        Q, avg_reward, state_action_count, avg_rewards_over_n_episodes, QL_ext_List[str(decks)] = rl.learn_Q(
             env, n_sims, gamma = 1, omega = omega, epsilon = epsilon, init_val = init_val,
             episode_file=path_fun("hand_state"), warmup=warmup)
         print("Number of explored states: " + str(len(Q)))
@@ -76,7 +78,7 @@ if __name__ == "__main__":
         print("----- Starting Q-learning for sum-based state space -----")
         # Q-learning with player sum state representation
         start_time_sum = time.time()
-        sumQ, sum_avg_reward, sum_state_action_count, avg_rewards_over_n_episodes = rl.learn_Q(
+        sumQ, sum_avg_reward, sum_state_action_count, avg_rewards_over_n_episodes, QL_sum_List[str(decks)] = rl.learn_Q(
             sum_env, n_sims, omega = omega, epsilon = epsilon, init_val = init_val,
             episode_file=path_fun("sum_state"), warmup=warmup)
         time_to_completion_sum = time.time() - start_time_sum
@@ -134,3 +136,13 @@ for i in D2.keys() :
     print(f"Method {i} :")
     for j in D2[i].keys() :
         print(f"\t deck {j} : {D2[i][j]}")
+
+# import json
+# with open(f"output/results_MC_method_{rl.EpsilonMethod}.json","w") as f:
+#     f.write(json.dumps(MC_List, indent = 4)) 
+
+# with open(f"output/results_QL_sum_method_{rl.EpsilonMethod}.json","w") as f:
+#     f.write(json.dumps(MC_List, indent = 4))
+
+# with open(f"output/results_QL_ext_method_{rl.EpsilonMethod}.json","w") as f :
+#     f.write(json.dumps(MC_List, indent = 4))

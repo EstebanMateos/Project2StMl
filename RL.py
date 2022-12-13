@@ -9,6 +9,20 @@ import random
 
 
 NbRewardsMeans = 2000
+EpsilonMethod = "Exponentially"
+
+def timedependent_epsilon(n_episodes, current_episode, epsilon, decrease_fun: str="Linear"):
+        #See page 7 PDF for lab2
+        epsilon_min = 0.05
+        epsilon_max = 0.99
+        Z = n_episodes*0.9 #Decreasing horizon
+        if decrease_fun == "Exponentially":
+            return max(epsilon_min, epsilon_max * (epsilon_min/epsilon_max)**(current_episode-1)/(Z-1))
+        elif decrease_fun == "Linear":
+            #Linear decrease
+            return max(epsilon_min, epsilon_max - (epsilon_max - epsilon_min)*(current_episode-1)/(Z-1))
+        else :
+            return epsilon
 
 def learn_Q(env, n_sims, gamma = 1, omega = 0.77, epsilon = 0.05,
             init_val = 0.0, Q_init = None, episode_file = None,
@@ -32,6 +46,8 @@ def learn_Q(env, n_sims, gamma = 1, omega = 0.77, epsilon = 0.05,
                                                       dtype = int))
     avg_reward = 0.0
     InterestingMean = 0.0
+    EvolutionReward = []
+    cumulated_reward = 0
     # if we want to save the episode reward to a file,
     if episode_file:
         f = open(episode_file, "w+")
@@ -42,12 +58,12 @@ def learn_Q(env, n_sims, gamma = 1, omega = 0.77, epsilon = 0.05,
         done = False
         action_reward = 0.0
         episode_reward = 0.0
-
+        
         
         state = env.reset()
         while not done:
             #Here you cans switch between decaying exploration and constant exploration
-            explore = random.random() < epsilon 
+            explore = random.random() < timedependent_epsilon(n_sims, episode, epsilon, EpsilonMethod) 
             #explore = random.random() < (epsilon / (1 + state_action_count[state].sum()))
             if state not in Q or explore:
                 # Take a random action
@@ -76,8 +92,10 @@ def learn_Q(env, n_sims, gamma = 1, omega = 0.77, epsilon = 0.05,
 
         if episode > n_sims - NbRewardsMeans :
             InterestingMean += episode_reward
-
+        cumulated_reward += episode_reward
         if episode % (n_sims // 100) == 0:
+            EvolutionReward.append(cumulated_reward/100)
+            cumulated_reward = 0
             print('Mean avg reward, after {} episodes: {}'.format(
                 episode, avg_reward))
             if f:
@@ -86,7 +104,7 @@ def learn_Q(env, n_sims, gamma = 1, omega = 0.77, epsilon = 0.05,
 
         # Game is over
         avg_reward += (episode_reward - avg_reward) / (episode + 1)
-    return Q, avg_reward, state_action_count, InterestingMean/NbRewardsMeans
+    return Q, avg_reward, state_action_count, InterestingMean/NbRewardsMeans, EvolutionReward
 
 
 def Q_policy(state, Q, env):
@@ -150,6 +168,7 @@ def learn_MC(env, n_sims, gamma = 1, epsilon = 0.05,
     episode_file: save ave
     """
 
+    EvolutionReward = []
     # Can start with a previously trained Q dict
     if Q_init is None:
         Q = defaultdict(lambda: np.zeros(env.action_space.n) + init_val)
@@ -160,6 +179,7 @@ def learn_MC(env, n_sims, gamma = 1, epsilon = 0.05,
                                                       dtype = int))
     avg_reward = 0.0
     InterestingMean = 0.0
+    cumulated_reward = 0
     # if we want to save the episode reward to a file,
     if episode_file:
         f = open(episode_file, "w+")
@@ -175,7 +195,7 @@ def learn_MC(env, n_sims, gamma = 1, epsilon = 0.05,
                                                       dtype = int))
         while not done:
             #Here you cans switch between decaying exploration and constant exploration
-            explore = random.random() < epsilon 
+            explore = random.random() < timedependent_epsilon(n_sims, episode,epsilon, EpsilonMethod) 
             #explore = random.random() < (epsilon / (1 + state_action_count[state].sum()))
             if state not in Q or explore:
                 # Take a random action
@@ -194,8 +214,10 @@ def learn_MC(env, n_sims, gamma = 1, epsilon = 0.05,
             episode_reward += action_reward
         if episode > n_sims - NbRewardsMeans :
             InterestingMean += episode_reward    
-
+        cumulated_reward += episode_reward
         if episode % (n_sims // 100) == 0:
+            EvolutionReward.append(cumulated_reward/100)
+            cumulated_reward = 0
             print('Mean avg reward, after {} episodes: {}'.format(
                 episode, avg_reward))
             if f:
@@ -214,4 +236,4 @@ def learn_MC(env, n_sims, gamma = 1, epsilon = 0.05,
 
         
     #################################################################### 
-    return Q, avg_reward, state_action_count, InterestingMean/NbRewardsMeans
+    return Q, avg_reward, state_action_count, InterestingMean/NbRewardsMeans, EvolutionReward
